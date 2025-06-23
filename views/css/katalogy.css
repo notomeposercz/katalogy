@@ -1,0 +1,183 @@
+/* Katalogy Module CSS */
+
+.katalogy-page {
+    margin: 20px 0;
+}
+
+.page-description {
+    margin-bottom: 30px;
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+.katalogy-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    margin-top: 30px;
+}
+
+.katalogy-item {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.katalogy-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+}
+
+.katalogy-item.katalogy-new {
+    border-color: #ff6b35;
+    box-shadow: 0 2px 10px rgba(255,107,53,0.2);
+}
+
+.katalogy-item.katalogy-new:hover {
+    box-shadow: 0 5px 20px rgba(255,107,53,0.3);
+}
+
+.new-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #ff6b35;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 2;
+}
+
+.katalogy-image {
+    height: 200px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+}
+
+.katalogy-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.no-image {
+    color: #ccc;
+    font-size: 48px;
+}
+
+.no-image .material-icons {
+    font-size: 48px;
+}
+
+.katalogy-content {
+    padding: 20px;
+}
+
+.katalogy-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.katalogy-description {
+    color: #666;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.katalogy-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.katalogy-download,
+.katalogy-interest {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 15px;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.katalogy-download {
+    background: #007bff;
+    color: white;
+    border: none;
+}
+
+.katalogy-download:hover {
+    background: #0056b3;
+    color: white;
+    text-decoration: none;
+}
+
+.katalogy-interest {
+    background: #6c757d;
+    color: white;
+    border: none;
+}
+
+.katalogy-interest:hover {
+    background: #545b62;
+    color: white;
+}
+
+/* Modal Styles */
+.modal-header {
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.modal-footer {
+    border-top: 1px solid #e0e0e0;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    font-weight: 500;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-control:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .katalogy-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .katalogy-actions {
+        flex-direction: column;
+    }
+}
