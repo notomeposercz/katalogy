@@ -37,10 +37,10 @@ class Katalogy extends Module
         return parent::install() &&
             $this->registerHook('displayHeader') &&
             $this->registerHook('actionFrontControllerSetMedia') &&
-            $this->registerHook('moduleRoutes') &&
+            $this->registerHook('displayCMSContent') &&
             $this->createTables() &&
             $this->createTab() &&
-            $this->addCustomRoute() &&
+            $this->createCustomPage() &&
             Configuration::updateValue('KATALOGY_EMAIL', Configuration::get('PS_SHOP_EMAIL'));
     }
 
@@ -49,7 +49,7 @@ class Katalogy extends Module
         return parent::uninstall() &&
             $this->dropTables() &&
             $this->removeTab() &&
-            $this->removeCustomRoute() &&
+            $this->removeCustomPage() &&
             Configuration::deleteByName('KATALOGY_EMAIL');
     }
 
@@ -163,7 +163,8 @@ class Katalogy extends Module
 
     public function hookDisplayHeader()
     {
-        if ($this->context->controller->php_self == 'seznam') {
+        if ($this->context->controller->php_self == 'cms' && 
+            Tools::getValue('id_cms') == Configuration::get('KATALOGY_CMS_ID')) {
             $this->context->controller->addCSS($this->_path . 'views/css/katalogy.css');
             $this->context->controller->addJS($this->_path . 'views/js/katalogy.js');
         }
@@ -171,44 +172,144 @@ class Katalogy extends Module
 
     public function hookActionFrontControllerSetMedia()
     {
-        if ($this->context->controller->php_self == 'seznam') {
+        if ($this->context->controller->php_self == 'cms' && 
+            Tools::getValue('id_cms') == Configuration::get('KATALOGY_CMS_ID')) {
             $this->context->controller->addCSS($this->_path . 'views/css/katalogy.css');
             $this->context->controller->addJS($this->_path . 'views/js/katalogy.js');
         }
     }
 
-    public function hookModuleRoutes()
+    public function hookDisplayCMSContent($params)
     {
-        return [
-            'module-katalogy-seznam' => [
-                'controller' => 'seznam',
-                'rule' => 'katalogy-reklamnich-predmetu-ke-stazeni',
-                'keywords' => [],
-                'params' => [
-                    'fc' => 'module',
-                    'module' => 'katalogy',
-                    'controller' => 'seznam'
-                ]
-            ]
-        ];
-    }
-
-    private function addCustomRoute()
-    {
-        // Custom route will be handled by hookModuleRoutes
-        return true;
-    }
-
-    private function removeCustomRoute()
-    {
-        // Route cleanup if needed
-        return true;
-    }
-
-    public function autoload($classname)
-    {
-        if ($classname === 'Katalog') {
-            require_once(_PS_MODULE_DIR_ . $this->name . '/classes/Katalog.php');
+        if (Tools::getValue('id_cms') == Configuration::get('KATALOGY_CMS_ID')) {
+            return $this->renderKatalogyContent();
         }
+        return '';
+    }
+
+    private function renderKatalogyContent()
+    {
+        // Handle interest form submission
+        if (Tools::isSubmit('submitInterest')) {
+            $this->processInterestForm();
+        }
+
+        // Include Katalog class
+        require_once(_PS_MODULE_DIR_ . 'katalogy/classes/Katalog.php');
+
+        // Get all active catalogs
+        $catalogs = Katalog::getAllActive();
+
+        // Process catalogs data for template
+        foreach ($catalogs as &$catalog) {
+            $katalog_obj = new Katalog($catalog['id_katalog']);
+            $catalog['download_url'] = $katalog_obj->getDownloadUrl();
+            $catalog['image_url'] = $katalog_obj->getImageUrl();
+            $catalog['has_download'] = $katalog_obj->hasDownload();
+        }
+
+        $this->context->smarty->assign([
+            'catalogs' => $catalogs,
+            'module_dir' => $this->getPathUri()
+        ]);
+
+        return $this->display(__FILE__, 'views/templates/front/katalogy_content.tpl');
+    }
+
+    private function processInterestForm()
+    {
+        $name = Tools::getValue('name');
+        $email = Tools::getValue('email');
+        $phone = Tools::getValue('phone');
+        $company = Tools::getValue('company');
+        $catalog_id = (int)Tools::getValue('catalog_id');
+        $message = Tools::getValue('message');
+
+        // Basic validation
+        if (empty($name) || empty($email) || !Validate::isEmail($email)) {
+            return;
+        }
+
+        // Include Katalog class
+        require_once(_PS_MODULE_DIR_ . 'katalogy/classes/Katalog.php');
+
+        // Get catalog info
+        $catalog = Katalog::getById($catalog_id);
+        if (!$catalog) {
+            return;
+        }
+
+        // Prepare email
+        $admin_email = Configuration::get('KATALOGY_EMAIL');
+        $subject = 'Zájem o katalog: ' . $catalog['title'];
+        
+        $email_content = "
+        Nový zájem o katalog ze stránek:
+        
+        Katalog: {$catalog['title']}
+        
+        Kontaktní údaje:
+        Jméno: $name
+        E-mail: $email
+        Telefon: $phone
+        Společnost: $company
+        
+        Zpráva:
+        $message
+        
+        ---
+        Odesláno ze stránek " . Configuration::get('PS_SHOP_NAME');
+
+        // Send email
+        Mail::Send(
+            $this->context->language->id,
+            'contact',
+            $subject,
+            ['message' => $email_content],
+            $admin_email,
+            null,
+            $email,
+            $name
+        );
+    }
+
+    private function createCustomPage()
+    {
+        $cms = new CMS();
+        $cms->meta_title = [];
+        $cms->meta_description = [];
+        $cms->meta_keywords = [];
+        $cms->content = [];
+        $cms->link_rewrite = [];
+
+        foreach (Language::getLanguages(true) as $lang) {
+            $cms->meta_title[$lang['id_lang']] = 'Katalogy reklamních předmětů ke stažení';
+            $cms->meta_description[$lang['id_lang']] = 'Stáhněte si naše katalogy reklamních předmětů nebo si vyžádejte fyzickou podobu.';
+            $cms->meta_keywords[$lang['id_lang']] = 'katalogy, reklamní předměty, stažení';
+            $cms->content[$lang['id_lang']] = '<!-- Katalogy content will be loaded here -->';
+            $cms->link_rewrite[$lang['id_lang']] = 'katalogy-reklamnich-predmetu-ke-stazeni';
+        }
+
+        $cms->active = 1;
+        
+        if ($cms->add()) {
+            Configuration::updateValue('KATALOGY_CMS_ID', $cms->id);
+            return true;
+        }
+        
+        return false;
+    }
+
+    private function removeCustomPage()
+    {
+        $cms_id = Configuration::get('KATALOGY_CMS_ID');
+        if ($cms_id) {
+            $cms = new CMS($cms_id);
+            if (Validate::isLoadedObject($cms)) {
+                $cms->delete();
+            }
+            Configuration::deleteByName('KATALOGY_CMS_ID');
+        }
+        return true;
     }
 }

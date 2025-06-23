@@ -14,6 +14,7 @@ class AdminKatalogyController extends ModuleAdminController
         $this->lang = false;
         $this->bootstrap = true;
         $this->context = Context::getContext();
+        $this->identifier = 'id_katalog';
 
         parent::__construct();
 
@@ -178,9 +179,9 @@ class AdminKatalogyController extends ModuleAdminController
             $this->processAdd();
         } elseif (Tools::isSubmit('submitEdit' . $this->table)) {
             $this->processEdit();
+        } else {
+            return parent::postProcess();
         }
-
-        return parent::postProcess();
     }
 
     public function processAdd()
@@ -198,6 +199,7 @@ class AdminKatalogyController extends ModuleAdminController
         if ($katalog->save()) {
             $this->handleFileUploads($katalog);
             $this->confirmations[] = $this->l('Katalog byl úspěšně přidán.');
+            $this->redirect_after = self::$currentIndex . '&token=' . $this->token;
         } else {
             $this->errors[] = $this->l('Chyba při ukládání katalogu.');
         }
@@ -219,6 +221,7 @@ class AdminKatalogyController extends ModuleAdminController
         if ($katalog->save()) {
             $this->handleFileUploads($katalog);
             $this->confirmations[] = $this->l('Katalog byl úspěšně upraven.');
+            $this->redirect_after = self::$currentIndex . '&token=' . $this->token;
         } else {
             $this->errors[] = $this->l('Chyba při ukládání katalogu.');
         }
@@ -228,7 +231,7 @@ class AdminKatalogyController extends ModuleAdminController
     {
         // Handle image upload
         if (isset($_FILES['image']) && $_FILES['image']['size'] > 0) {
-            $image_name = $katalog->id . '_' . time() . '.jpg';
+            $image_name = $katalog->id_katalog . '_' . time() . '.jpg';
             $upload_dir = _PS_MODULE_DIR_ . 'katalogy/views/img/katalogy/';
             
             if (!file_exists($upload_dir)) {
@@ -244,7 +247,7 @@ class AdminKatalogyController extends ModuleAdminController
         // Handle catalog file upload
         if (isset($_FILES['catalog_file']) && $_FILES['catalog_file']['size'] > 0) {
             $file_extension = pathinfo($_FILES['catalog_file']['name'], PATHINFO_EXTENSION);
-            $file_name = $katalog->id . '_catalog_' . time() . '.' . $file_extension;
+            $file_name = $katalog->id_katalog . '_catalog_' . time() . '.' . $file_extension;
             $upload_dir = _PS_MODULE_DIR_ . 'katalogy/files/';
             
             if (!file_exists($upload_dir)) {
