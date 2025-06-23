@@ -1,115 +1,135 @@
 <?php
 /**
- * Standalone Katalogy Page
- * Place this file in the root directory of PrestaShop
+ * DEBUG VERSION - Katalogy Page
  */
 
-// Include PrestaShop config
-require_once(dirname(__FILE__).'/config/config.inc.php');
-require_once(dirname(__FILE__).'/init.php');
+echo "<h1>DEBUG - Katalogy</h1>";
 
-// Include Katalog class
-require_once(_PS_MODULE_DIR_ . 'katalogy/classes/Katalog.php');
+// 1. Test základního načtení
+echo "<h2>1. Test základního načtení</h2>";
+echo "✅ PHP funguje<br>";
+echo "Server: " . $_SERVER['HTTP_HOST'] . "<br>";
+echo "Script: " . $_SERVER['SCRIPT_NAME'] . "<br>";
 
-// Initialize context
-$context = Context::getContext();
+// 2. Test PrestaShop config
+echo "<h2>2. Test PrestaShop config</h2>";
+$config_file = dirname(__FILE__).'/config/config.inc.php';
+if (file_exists($config_file)) {
+    echo "✅ Config file existuje: $config_file<br>";
+    require_once($config_file);
+    echo "✅ Config načten<br>";
+} else {
+    die("❌ Config file nenalezen: $config_file");
+}
 
-// Handle interest form submission
-if (Tools::isSubmit('submitInterest')) {
-    $name = Tools::getValue('name');
-    $email = Tools::getValue('email');
-    $phone = Tools::getValue('phone');
-    $company = Tools::getValue('company');
-    $catalog_id = (int)Tools::getValue('catalog_id');
-    $message = Tools::getValue('message');
+// 3. Test init
+echo "<h2>3. Test init</h2>";
+$init_file = dirname(__FILE__).'/init.php';
+if (file_exists($init_file)) {
+    echo "✅ Init file existuje<br>";
+    require_once($init_file);
+    echo "✅ Init načten<br>";
+} else {
+    die("❌ Init file nenalezen: $init_file");
+}
 
-    // Basic validation
-    if (!empty($name) && !empty($email) && Validate::isEmail($email)) {
-        // Get catalog info
-        $catalog = Katalog::getById($catalog_id);
-        if ($catalog) {
-            // Prepare email
-            $admin_email = Configuration::get('KATALOGY_EMAIL');
-            $subject = 'Zájem o katalog: ' . $catalog['title'];
-            
-            $email_content = "
-            Nový zájem o katalog ze stránek:
-            
-            Katalog: {$catalog['title']}
-            
-            Kontaktní údaje:
-            Jméno: $name
-            E-mail: $email
-            Telefon: $phone
-            Společnost: $company
-            
-            Zpráva:
-            $message
-            
-            ---
-            Odesláno ze stránek " . Configuration::get('PS_SHOP_NAME');
+// 4. Test modulu
+echo "<h2>4. Test modulu</h2>";
+if (class_exists('Module')) {
+    echo "✅ Module class existuje<br>";
+    $is_installed = Module::isInstalled('katalogy');
+    echo $is_installed ? "✅ Modul je nainstalován<br>" : "❌ Modul NENÍ nainstalován<br>";
+    
+    if ($is_installed) {
+        $module = Module::getInstanceByName('katalogy');
+        if ($module) {
+            echo "✅ Module instance získána<br>";
+            echo "Verze: " . $module->version . "<br>";
+        } else {
+            echo "❌ Nepodařilo se získat module instance<br>";
+        }
+    }
+} else {
+    echo "❌ Module class neexistuje<br>";
+}
 
-            // Send email
-            if (Mail::Send(
-                $context->language->id,
-                'contact',
-                $subject,
-                ['message' => $email_content],
-                $admin_email,
-                null,
-                $email,
-                $name
-            )) {
-                $success_message = 'Váš zájem byl odeslán. Brzy se vám ozveme.';
-            } else {
-                $error_message = 'Chyba při odesílání zprávy. Zkuste to prosím znovu.';
+// 5. Test Katalog třídy
+echo "<h2>5. Test Katalog třídy</h2>";
+$katalog_file = _PS_MODULE_DIR_ . 'katalogy/classes/Katalog.php';
+echo "Hledám: $katalog_file<br>";
+
+if (file_exists($katalog_file)) {
+    echo "✅ Katalog.php existuje<br>";
+    require_once($katalog_file);
+    
+    if (class_exists('Katalog')) {
+        echo "✅ Katalog class načtena<br>";
+        
+        // Test database
+        try {
+            $catalogs = Katalog::getAllActive();
+            echo "✅ Database funguje<br>";
+            echo "Počet katalogů: " . count($catalogs) . "<br>";
+            
+            if (!empty($catalogs)) {
+                echo "<h3>Nalezené katalogy:</h3>";
+                foreach ($catalogs as $catalog) {
+                    echo "- ID: {$catalog['id_katalog']}, Název: {$catalog['title']}<br>";
+                }
             }
+        } catch (Exception $e) {
+            echo "❌ Chyba database: " . $e->getMessage() . "<br>";
         }
     } else {
-        $error_message = 'Prosím vyplňte všechna povinná pole správně.';
+        echo "❌ Katalog class se nepodařilo načíst<br>";
+    }
+} else {
+    echo "❌ Katalog.php nenalezen<br>";
+    echo "Module dir: " . _PS_MODULE_DIR_ . "<br>";
+}
+
+// 6. Test template
+echo "<h2>6. Test template</h2>";
+$template_file = _PS_MODULE_DIR_ . 'katalogy/views/templates/front/standalone.tpl';
+echo "Hledám template: $template_file<br>";
+if (file_exists($template_file)) {
+    echo "✅ Template existuje<br>";
+} else {
+    echo "❌ Template nenalezen<br>";
+}
+
+// 7. Test konfigurace
+echo "<h2>7. Test konfigurace</h2>";
+if (class_exists('Configuration')) {
+    $email = Configuration::get('KATALOGY_EMAIL');
+    echo "Email konfigurace: " . ($email ?: 'NENÍ NASTAVENO') . "<br>";
+    
+    $shop_name = Configuration::get('PS_SHOP_NAME');
+    echo "Název shopu: " . $shop_name . "<br>";
+} else {
+    echo "❌ Configuration class neexistuje<br>";
+}
+
+echo "<h2>8. Informace o prostředí</h2>";
+echo "PHP verze: " . PHP_VERSION . "<br>";
+echo "PrestaShop verze: " . (defined('_PS_VERSION_') ? _PS_VERSION_ : 'UNKNOWN') . "<br>";
+echo "Current working directory: " . getcwd() . "<br>";
+
+// 9. Test oprávnění
+echo "<h2>9. Test oprávnění adresářů</h2>";
+$dirs_to_check = [
+    _PS_MODULE_DIR_ . 'katalogy/',
+    _PS_MODULE_DIR_ . 'katalogy/views/img/katalogy/',
+    _PS_MODULE_DIR_ . 'katalogy/files/'
+];
+
+foreach ($dirs_to_check as $dir) {
+    if (is_dir($dir)) {
+        $writable = is_writable($dir) ? '✅ Writable' : '❌ Not writable';
+        echo "$dir - $writable<br>";
+    } else {
+        echo "$dir - ❌ Neexistuje<br>";
     }
 }
 
-// Get all active catalogs
-$catalogs = Katalog::getAllActive();
-
-// Process catalogs data
-foreach ($catalogs as &$catalog) {
-    $katalog_obj = new Katalog($catalog['id_katalog']);
-    $catalog['download_url'] = $katalog_obj->getDownloadUrl();
-    $catalog['image_url'] = $katalog_obj->getImageUrl();
-    $catalog['has_download'] = $katalog_obj->hasDownload();
-}
-
-// Assign variables to Smarty
-$context->smarty->assign([
-    'catalogs' => $catalogs,
-    'page_title' => 'Katalogy reklamních předmětů ke stažení',
-    'page_description' => 'Stáhněte si naše katalogy reklamních předmětů nebo si vyžádejte fyzickou podobu.',
-    'module_dir' => _MODULE_DIR_ . 'katalogy/',
-    'success_message' => isset($success_message) ? $success_message : '',
-    'error_message' => isset($error_message) ? $error_message : '',
-    'base_dir' => _PS_BASE_URL_,
-    'css_dir' => _THEME_CSS_DIR_,
-    'js_dir' => _THEME_JS_DIR_,
-    'img_dir' => _THEME_IMG_DIR_
-]);
-
-// Set page meta
-$context->smarty->assign([
-    'meta_title' => 'Katalogy reklamních předmětů ke stažení',
-    'meta_description' => 'Stáhněte si naše katalogy reklamních předmětů nebo si vyžádejte fyzickou podobu.',
-    'meta_keywords' => 'katalogy, reklamní předměty, stažení'
-]);
-
-// Get shop information
-$context->smarty->assign([
-    'shop' => [
-        'name' => Configuration::get('PS_SHOP_NAME'),
-        'logo' => _PS_IMG_ . Configuration::get('PS_LOGO')
-    ]
-]);
-
-// Display the page
-$context->smarty->display(_PS_MODULE_DIR_ . 'katalogy/views/templates/front/standalone.tpl');
 ?>

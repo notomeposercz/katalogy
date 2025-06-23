@@ -1,3 +1,19 @@
+{* CSS a JS jsou načítány automaticky přes hook *}
+
+{if $success_message}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        {$success_message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+{/if}
+
+{if $error_message}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {$error_message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+{/if}
+
 <div class="katalogy-page">
     {if $catalogs}
         <div class="katalogy-grid">
@@ -9,7 +25,7 @@
                     
                     <div class="katalogy-image">
                         {if $catalog.image_url}
-                            <img src="{$catalog.image_url}" alt="{$catalog.title|escape:'html':'UTF-8'}" />
+                            <img src="{$catalog.image_url}" alt="{$catalog.title|escape:'html':'UTF-8'}" loading="lazy" />
                         {else}
                             <div class="no-image">
                                 <i class="material-icons">folder</i>
@@ -28,7 +44,8 @@
                             {if $catalog.has_download}
                                 <a href="{$catalog.download_url}" 
                                    class="btn btn-primary katalogy-download" 
-                                   target="_blank">
+                                   target="_blank"
+                                   rel="noopener noreferrer">
                                     <i class="material-icons">file_download</i>
                                     Stáhnout katalog
                                 </a>
@@ -36,7 +53,8 @@
                             
                             <button class="btn btn-secondary katalogy-interest" 
                                     data-catalog-id="{$catalog.id_katalog}"
-                                    data-catalog-title="{$catalog.title|escape:'html':'UTF-8'}">
+                                    data-catalog-title="{$catalog.title|escape:'html':'UTF-8'}"
+                                    type="button">
                                 <i class="material-icons">mail</i>
                                 Zájem o katalog
                             </button>
@@ -47,49 +65,49 @@
         </div>
     {else}
         <div class="alert alert-info">
-            <p>Momentálně nejsou k dispozici žádné katalogy.</p>
+            <p><i class="material-icons">info</i> Momentálně nejsou k dispozici žádné katalogy.</p>
         </div>
     {/if}
 </div>
 
 {* Interest Modal *}
-<div id="interestModal" class="modal fade" tabindex="-1" role="dialog">
+<div class="modal fade" id="interestModal" tabindex="-1" role="dialog" aria-labelledby="interestModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Zájem o katalog</h5>
-                <button type="button" class="close" data-dismiss="modal">
-                    <span>&times;</span>
+                <h5 class="modal-title" id="interestModalLabel">Zájem o katalog</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <form id="interestForm" method="post">
+            <form id="interestForm" method="post" action="{$smarty.server.REQUEST_URI}">
                 <div class="modal-body">
-                    <div class="form-group">
+                    <div class="form-group mb-3">
                         <strong id="catalogTitle"></strong>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="name">Jméno a příjmení *</label>
+                    <div class="form-group mb-3">
+                        <label for="name" class="form-label">Jméno a příjmení *</label>
                         <input type="text" class="form-control" id="name" name="name" required>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="email">E-mail *</label>
+                    <div class="form-group mb-3">
+                        <label for="email" class="form-label">E-mail *</label>
                         <input type="email" class="form-control" id="email" name="email" required>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="phone">Telefon</label>
+                    <div class="form-group mb-3">
+                        <label for="phone" class="form-label">Telefon</label>
                         <input type="tel" class="form-control" id="phone" name="phone">
                     </div>
                     
-                    <div class="form-group">
-                        <label for="company">Společnost</label>
+                    <div class="form-group mb-3">
+                        <label for="company" class="form-label">Společnost</label>
                         <input type="text" class="form-control" id="company" name="company">
                     </div>
                     
-                    <div class="form-group">
-                        <label for="message">Zpráva</label>
+                    <div class="form-group mb-3">
+                        <label for="message" class="form-label">Zpráva</label>
                         <textarea class="form-control" id="message" name="message" rows="3" placeholder="Volitelná zpráva..."></textarea>
                     </div>
                     

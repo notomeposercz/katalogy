@@ -1,4 +1,4 @@
-// Katalogy Module JavaScript
+// Katalogy Module JavaScript - CMS Version
 
 document.addEventListener('DOMContentLoaded', function() {
     // Handle interest buttons
@@ -8,6 +8,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const catalogIdInput = document.getElementById('catalog_id');
     const form = document.getElementById('interestForm');
 
+    if (!modal || !catalogTitle || !catalogIdInput || !form) {
+        console.log('Katalogy: Modal elements not found');
+        return;
+    }
+
     interestButtons.forEach(button => {
         button.addEventListener('click', function() {
             const catalogId = this.getAttribute('data-catalog-id');
@@ -16,15 +21,25 @@ document.addEventListener('DOMContentLoaded', function() {
             catalogTitle.textContent = 'Zájem o katalog: ' + catalogTitleText;
             catalogIdInput.value = catalogId;
             
-            // Show modal
-            if (typeof $ !== 'undefined' && $.fn.modal) {
+            // Show modal - Bootstrap detection
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                // Bootstrap 5
+                const bsModal = new bootstrap.Modal(modal);
+                bsModal.show();
+            } else if (typeof $ !== 'undefined' && $.fn.modal) {
                 // Bootstrap 4 with jQuery
-                $('#interestModal').modal('show');
+                $(modal).modal('show');
             } else {
                 // Fallback for vanilla JS
                 modal.style.display = 'block';
                 modal.classList.add('show');
                 document.body.classList.add('modal-open');
+                
+                // Create backdrop
+                const backdrop = document.createElement('div');
+                backdrop.className = 'modal-backdrop fade show';
+                backdrop.id = 'katalogy-backdrop';
+                document.body.appendChild(backdrop);
             }
         });
     });
@@ -45,16 +60,30 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function closeModal() {
-        if (typeof $ !== 'undefined' && $.fn.modal) {
-            $('#interestModal').modal('hide');
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            // Bootstrap 5
+            const bsModal = bootstrap.Modal.getInstance(modal);
+            if (bsModal) {
+                bsModal.hide();
+            }
+        } else if (typeof $ !== 'undefined' && $.fn.modal) {
+            // Bootstrap 4
+            $(modal).modal('hide');
         } else {
+            // Fallback
             modal.style.display = 'none';
             modal.classList.remove('show');
             document.body.classList.remove('modal-open');
+            
+            const backdrop = document.getElementById('katalogy-backdrop');
+            if (backdrop) {
+                backdrop.remove();
+            }
         }
         
         // Reset form
         form.reset();
+        catalogIdInput.value = '';
     }
 
     // Handle form submission
@@ -75,5 +104,20 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Prosím zadejte platnou e-mailovou adresu.');
             return false;
         }
+        
+        // Close modal after successful submission
+        setTimeout(closeModal, 100);
+    });
+
+    // Auto-dismiss alerts after 5 seconds
+    const alerts = document.querySelectorAll('.alert');
+    alerts.forEach(alert => {
+        setTimeout(() => {
+            if (alert.querySelector('.btn-close')) {
+                alert.querySelector('.btn-close').click();
+            } else {
+                alert.style.display = 'none';
+            }
+        }, 5000);
     });
 });
