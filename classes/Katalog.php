@@ -99,7 +99,29 @@ class Katalog extends ObjectModel
     public static function getHighestPosition()
     {
         $sql = 'SELECT MAX(`position`) FROM `' . _DB_PREFIX_ . 'katalogy`';
-        return (int)Db::getInstance()->getValue($sql);
+        $max_position = (int)Db::getInstance()->getValue($sql);
+        return $max_position > 0 ? $max_position : 0;
+    }
+
+    /**
+     * Fix duplicate positions
+     */
+    public static function fixDuplicatePositions()
+    {
+        $sql = 'SELECT `id_katalog` FROM `' . _DB_PREFIX_ . 'katalogy` ORDER BY `position` ASC, `id_katalog` ASC';
+        $catalogs = Db::getInstance()->executeS($sql);
+
+        if ($catalogs) {
+            $position = 1;
+            foreach ($catalogs as $catalog) {
+                Db::getInstance()->update(
+                    'katalogy',
+                    ['position' => $position],
+                    'id_katalog = ' . (int)$catalog['id_katalog']
+                );
+                $position++;
+            }
+        }
     }
 
     /**
@@ -132,5 +154,44 @@ class Katalog extends ObjectModel
     public function hasDownload()
     {
         return !empty($this->file_url) || !empty($this->file_path);
+    }
+
+    /**
+     * Update position of catalog
+     */
+    public function updatePosition($way, $position)
+    {
+        if (!$res = Db::getInstance()->executeS('
+            SELECT `id_katalog`, `position`
+            FROM `' . _DB_PREFIX_ . 'katalogy`
+            ORDER BY `position` ASC'
+        )) {
+            return false;
+        }
+
+        foreach ($res as $catalog) {
+            if ((int)$catalog['id_katalog'] == (int)$this->id) {
+                $moved_catalog = $catalog;
+            }
+        }
+
+        if (!isset($moved_catalog) || !isset($position)) {
+            return false;
+        }
+
+        // < and > statements rather than BETWEEN operator
+        // since BETWEEN is treated differently according to databases
+        return (Db::getInstance()->execute('
+            UPDATE `' . _DB_PREFIX_ . 'katalogy`
+            SET `position`= `position` ' . ($way ? '- 1' : '+ 1') . '
+            WHERE `position`
+            ' . ($way
+                ? '> ' . (int)$moved_catalog['position'] . ' AND `position` <= ' . (int)$position
+                : '< ' . (int)$moved_catalog['position'] . ' AND `position` >= ' . (int)$position) . '
+            AND `id_katalog` != ' . (int)$moved_catalog['id_katalog'])
+        && Db::getInstance()->execute('
+            UPDATE `' . _DB_PREFIX_ . 'katalogy`
+            SET `position` = ' . (int)$position . '
+            WHERE `id_katalog` = ' . (int)$moved_catalog['id_katalog']));
     }
 }

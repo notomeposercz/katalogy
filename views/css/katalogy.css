@@ -1,7 +1,60 @@
 /* Katalogy Module CSS */
 
+.katalogy-cms-page {
+    margin: 0;
+    padding: 0;
+}
+
 .katalogy-page {
     margin: 20px 0;
+}
+
+.page-header {
+    margin-bottom: 40px;
+}
+
+.katalogy-intro {
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.katalogy-intro .lead {
+    font-size: 1.25rem;
+    color: #666;
+    margin-bottom: 0;
+}
+
+.katalogy-info {
+    background: #fff;
+    border-radius: 10px;
+    padding: 10px 20px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+    margin-bottom: 40px;
+}
+
+.katalogy-info .col-md-4 {
+    text-align: center;
+    padding: 20px 15px;
+}
+
+.katalogy-info .material-icons {
+    display: block;
+    margin: 0 auto 15px auto;
+}
+
+.katalogy-info h4 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 15px 0;
+    color: #333;
+    text-align: center;
+}
+
+.katalogy-info p {
+    color: #666;
+    margin-bottom: 0;
+    line-height: 1.6;
+    text-align: center;
 }
 
 .page-description {
@@ -12,7 +65,7 @@
 
 .katalogy-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 30px;
     margin-top: 30px;
 }
@@ -55,7 +108,9 @@
 }
 
 .katalogy-image {
-    height: 200px;
+    min-height: 200px;
+    max-height: 400px;
+    height: auto;
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -65,8 +120,9 @@
 
 .katalogy-image img {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
+    height: auto;
+    max-height: 400px;
+    object-fit: contain;
 }
 
 .no-image {
@@ -140,6 +196,42 @@
 /* Modal Styles */
 .modal-header {
     border-bottom: 1px solid #e0e0e0;
+    position: relative;
+}
+
+.modal-close-btn {
+    position: absolute !important;
+    top: 15px !important;
+    right: 15px !important;
+    z-index: 1000 !important;
+    background: #fff !important;
+    border: 1px solid #ddd !important;
+    border-radius: 50% !important;
+    width: 35px !important;
+    height: 35px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+}
+
+.modal-close-btn:hover {
+    background: #f8f9fa !important;
+    border-color: #999 !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    transform: scale(1.05) !important;
+}
+
+.modal-close-btn .material-icons {
+    font-size: 20px !important;
+    color: #666 !important;
+    line-height: 1 !important;
+}
+
+.modal-close-btn:hover .material-icons {
+    color: #333 !important;
 }
 
 .modal-footer {
@@ -147,13 +239,14 @@
 }
 
 .form-group {
-    margin-bottom: 15px;
+    margin-bottom: 15px !important;
 }
 
 .form-group label {
     font-weight: 500;
     margin-bottom: 5px;
     display: block;
+    text-align: left;
 }
 
 .form-control {
@@ -170,14 +263,138 @@
     box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
 }
 
+/* Kontaktní sekce */
+.katalogy-contact {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    border: 1px solid #dee2e6;
+    padding: 40px 30px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    position: relative;
+    overflow: hidden;
+}
+
+.katalogy-contact::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #007bff, #28a745, #ffc107);
+}
+
+.contact-content h3 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 15px;
+    line-height: 1.3;
+}
+
+.contact-content p {
+    color: #5a6c7d;
+    margin-bottom: 0;
+    line-height: 1.6;
+    font-size: 1.1rem;
+}
+
+.contact-phone {
+    margin-top: 15px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    color: #2c3e50 !important;
+    font-size: 1.2rem !important;
+}
+
+.contact-phone .material-icons {
+    color: #007bff !important;
+    font-size: 20px !important;
+}
+
+.contact-action {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    height: 100%;
+}
+
+.btn-contact {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn-contact:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+    color: white;
+    text-decoration: none;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,123,255,0.4);
+}
+
+.btn-contact .material-icons {
+    font-size: 20px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
+    .page-title {
+        font-size: 2rem;
+    }
+
+    .lead {
+        font-size: 1.1rem;
+    }
+
+    .katalogy-info {
+        padding: 30px 15px;
+    }
+
     .katalogy-grid {
         grid-template-columns: 1fr;
         gap: 20px;
     }
-    
+
     .katalogy-actions {
         flex-direction: column;
+    }
+
+    .katalogy-contact {
+        padding: 30px 20px;
+        text-align: center;
+    }
+
+    .contact-content h3 {
+        font-size: 1.5rem;
+        margin-bottom: 20px;
+    }
+
+    .contact-content p {
+        font-size: 1rem;
+        margin-bottom: 25px;
+    }
+
+    .contact-action {
+        justify-content: center;
+        margin-top: 20px;
+    }
+
+    .btn-contact {
+        padding: 12px 25px;
+        font-size: 1rem;
     }
 }
