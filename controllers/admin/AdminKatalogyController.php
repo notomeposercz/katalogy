@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin Controller for Katalogy Module
+ * Admin Controller for Katalogy Module - FINÁLNÍ VERZE
  */
 
 require_once(_PS_MODULE_DIR_ . 'katalogy/classes/Katalog.php');
@@ -173,35 +173,41 @@ class AdminKatalogyController extends ModuleAdminController
         $this->addRowAction('edit');
         $this->addRowAction('delete');
 
-        // Add position management
-        $this->addRowAction('position');
-
         return parent::renderList();
     }
 
     public function renderForm()
     {
-        // Přidat zobrazení existujícího obrázku při editaci
-        if ($this->object && $this->object->id_katalog) {
-            $katalog = new Katalog($this->object->id_katalog);
+        // Správné zobrazení existujícího obrázku při editaci
+        if (isset($this->object) && $this->object->id) {
+            $katalog = new Katalog($this->object->id);
+            
             if ($katalog->image) {
                 $image_url = _MODULE_DIR_ . 'katalogy/views/img/katalogy/' . $katalog->image;
-                $this->fields_form['input'][] = [
+                
+                $current_image_input = [
                     'type' => 'html',
                     'label' => $this->l('Aktuální obrázek'),
-                    'name' => 'current_image',
-                    'html_content' => '<img src="' . $image_url . '" alt="Aktuální obrázek" style="max-width: 200px; max-height: 200px;" />'
+                    'name' => 'current_image_display',
+                    'html_content' => '<img src="' . $image_url . '" alt="Aktuální obrázek" style="max-width: 200px; max-height: 200px;" />' .
+                                     '<input type="hidden" name="existing_image" value="' . $katalog->image . '" />'
                 ];
+                
+                array_splice($this->fields_form['input'], 2, 0, [$current_image_input]);
             }
 
             if ($katalog->file_path) {
                 $file_url = _MODULE_DIR_ . 'katalogy/files/' . $katalog->file_path;
-                $this->fields_form['input'][] = [
+                $current_file_input = [
                     'type' => 'html',
                     'label' => $this->l('Aktuální soubor'),
-                    'name' => 'current_file',
-                    'html_content' => '<a href="' . $file_url . '" target="_blank" class="btn btn-default">' . $this->l('Stáhnout aktuální soubor') . '</a>'
+                    'name' => 'current_file_display',
+                    'html_content' => '<a href="' . $file_url . '" target="_blank" class="btn btn-default">' . 
+                                     $this->l('Stáhnout aktuální soubor') . '</a>' .
+                                     '<input type="hidden" name="existing_file_path" value="' . $katalog->file_path . '" />'
                 ];
+                
+                array_splice($this->fields_form['input'], 5, 0, [$current_file_input]);
             }
         }
 
@@ -210,12 +216,15 @@ class AdminKatalogyController extends ModuleAdminController
 
     public function postProcess()
     {
-        if (Tools::isSubmit('submitAdd' . $this->table)) {
-            $this->processAdd();
-            return;
-        } elseif (Tools::isSubmit('submitEdit' . $this->table)) {
-            $this->processEdit();
-            return;
+        // Správné zpracování editace vs. přidání
+        if (Tools::isSubmit('submit' . $this->table)) {
+            $id = (int)Tools::getValue('id_katalog');
+            
+            if ($id > 0) {
+                return $this->processUpdate();
+            } else {
+                return $this->processAdd();
+            }
         }
 
         return parent::postProcess();
@@ -226,8 +235,8 @@ class AdminKatalogyController extends ModuleAdminController
         $katalog = new Katalog();
         $this->copyFromPost($katalog, $this->table);
         
-        if ($katalog->position == 0) {
-            $katalog->position = Katalog::getHighestPosition() + 1;
+        if (empty($katalog->position) || $katalog->position == 0) {
+            $katalog->position = $this->getNextPosition();
         }
 
         $katalog->date_add = date('Y-m-d H:i:s');
@@ -242,34 +251,41 @@ class AdminKatalogyController extends ModuleAdminController
         }
     }
 
-    public function processEdit()
+    public function processUpdate()
     {
         $id = (int)Tools::getValue('id_katalog');
         $katalog = new Katalog($id);
 
         if (!Validate::isLoadedObject($katalog)) {
             $this->errors[] = $this->l('Katalog nebyl nalezen.');
-            return;
+            return false;
         }
 
-        // Zachovat původní hodnoty
         $original_image = $katalog->image;
         $original_file_path = $katalog->file_path;
         $original_position = $katalog->position;
 
         $this->copyFromPost($katalog, $this->table);
 
-        // Zajistit, že ID zůstane stejné
+        $katalog->id = $id;
         $katalog->id_katalog = $id;
 
-        // Zachovat pozici pokud nebyla změněna
+        // Zachování souborů pokud se nenahrávají nové
+        if (empty($_FILES['image']['tmp_name']) && Tools::getValue('existing_image')) {
+            $katalog->image = Tools::getValue('existing_image');
+        }
+
+        if (empty($_FILES['catalog_file']['tmp_name']) && Tools::getValue('existing_file_path')) {
+            $katalog->file_path = Tools::getValue('existing_file_path');
+        }
+
         if (empty($katalog->position) || $katalog->position == 0) {
             $katalog->position = $original_position;
         }
 
         $katalog->date_upd = date('Y-m-d H:i:s');
 
-        if ($katalog->save()) {
+        if ($katalog->update()) {
             $this->handleFileUploads($katalog, $original_image, $original_file_path);
             $this->confirmations[] = $this->l('Katalog byl úspěšně upraven.');
             $this->redirect_after = self::$currentIndex . '&token=' . $this->token;
@@ -278,80 +294,25 @@ class AdminKatalogyController extends ModuleAdminController
         }
     }
 
-    private function handleFileUploads($katalog, $original_image = null, $original_file_path = null)
-    {
-        $updated = false;
-
-        // Handle image upload
-        if (isset($_FILES['image']) && $_FILES['image']['size'] > 0) {
-            $image_name = $katalog->id_katalog . '_' . time() . '.jpg';
-            $upload_dir = _PS_MODULE_DIR_ . 'katalogy/views/img/katalogy/';
-
-            if (!file_exists($upload_dir)) {
-                mkdir($upload_dir, 0755, true);
-            }
-
-            if (move_uploaded_file($_FILES['image']['tmp_name'], $upload_dir . $image_name)) {
-                // Smazat starý obrázek pokud existuje
-                if ($original_image && file_exists($upload_dir . $original_image)) {
-                    unlink($upload_dir . $original_image);
-                }
-                $katalog->image = $image_name;
-                $updated = true;
-            }
-        } else if ($original_image) {
-            // Zachovat původní obrázek pokud se nenahrává nový
-            $katalog->image = $original_image;
-        }
-
-        // Handle catalog file upload
-        if (isset($_FILES['catalog_file']) && $_FILES['catalog_file']['size'] > 0) {
-            $file_extension = pathinfo($_FILES['catalog_file']['name'], PATHINFO_EXTENSION);
-            $file_name = $katalog->id_katalog . '_catalog_' . time() . '.' . $file_extension;
-            $upload_dir = _PS_MODULE_DIR_ . 'katalogy/files/';
-
-            if (!file_exists($upload_dir)) {
-                mkdir($upload_dir, 0755, true);
-            }
-
-            if (move_uploaded_file($_FILES['catalog_file']['tmp_name'], $upload_dir . $file_name)) {
-                // Smazat starý soubor pokud existuje
-                if ($original_file_path && file_exists($upload_dir . $original_file_path)) {
-                    unlink($upload_dir . $original_file_path);
-                }
-                $katalog->file_path = $file_name;
-                $updated = true;
-            }
-        } else if ($original_file_path) {
-            // Zachovat původní soubor pokud se nenahrává nový
-            $katalog->file_path = $original_file_path;
-        }
-
-        // Uložit pouze pokud byly změny
-        if ($updated) {
-            $katalog->save();
-        }
-    }
-
+    /**
+     * DRAG & DROP POZICE - Hlavní metoda pro AJAX
+     */
     public function ajaxProcessUpdatePositions()
     {
-        $way = (int)Tools::getValue('way');
-        $id = (int)Tools::getValue('id');
         $positions = Tools::getValue($this->table);
 
         if (is_array($positions)) {
             foreach ($positions as $position => $value) {
                 $pos = explode('_', $value);
-                if (isset($pos[2])) {
+                if (isset($pos[2]) && is_numeric($pos[2])) {
                     $katalog_id = (int)$pos[2];
-                    $new_position = (int)$position + 1; // Position starts from 1
-
-                    // Update position directly in database to avoid conflicts
-                    Db::getInstance()->update(
-                        'katalogy',
-                        ['position' => $new_position],
-                        'id_katalog = ' . $katalog_id
-                    );
+                    $new_position = (int)$position + 1; // JS počítá od 0, DB od 1
+                    
+                    $sql = 'UPDATE `' . _DB_PREFIX_ . 'katalogy` 
+                           SET `position` = ' . (int)$new_position . ' 
+                           WHERE `id_katalog` = ' . (int)$katalog_id;
+                    
+                    Db::getInstance()->execute($sql);
                 }
             }
         }
@@ -359,16 +320,116 @@ class AdminKatalogyController extends ModuleAdminController
         die(json_encode(['success' => true]));
     }
 
+    /**
+     * Zpracování pozice pomocí šipek nahoru/dolů
+     */
     public function processPosition()
     {
         if (!$this->loadObject(true)) {
             return false;
         }
 
-        if ($this->object->updatePosition((int)Tools::getValue('way'), (int)Tools::getValue('position'))) {
+        $way = (int)Tools::getValue('way');
+        $id_katalog = (int)$this->object->id;
+        $current_position = (int)$this->object->position;
+        
+        if ($way) {
+            // Nahoru - snížit pozici
+            $new_position = max(1, $current_position - 1);
+        } else {
+            // Dolů - zvýšit pozici
+            $new_position = $current_position + 1;
+        }
+
+        // Prohození pozic
+        $swap_sql = 'UPDATE `' . _DB_PREFIX_ . 'katalogy` 
+                   SET `position` = ' . (int)$current_position . ' 
+                   WHERE `position` = ' . (int)$new_position . ' 
+                   AND `id_katalog` != ' . (int)$id_katalog;
+        Db::getInstance()->execute($swap_sql);
+
+        // Nastavení nové pozice
+        $update_sql = 'UPDATE `' . _DB_PREFIX_ . 'katalogy` 
+                     SET `position` = ' . (int)$new_position . ' 
+                     WHERE `id_katalog` = ' . (int)$id_katalog;
+        
+        if (Db::getInstance()->execute($update_sql)) {
             $this->redirect_after = self::$currentIndex . '&token=' . $this->token . '&conf=5';
         } else {
-            $this->errors[] = $this->l('Failed to update the position.');
+            $this->errors[] = $this->l('Nepodařilo se aktualizovat pozici.');
+        }
+    }
+
+    private function handleFileUploads($katalog, $original_image = null, $original_file_path = null)
+    {
+        $updated = false;
+
+        // Zpracování nahrání obrázku
+        if (isset($_FILES['image']) && $_FILES['image']['size'] > 0 && $_FILES['image']['error'] == 0) {
+            $image_name = $katalog->id . '_' . time() . '.jpg';
+            $upload_dir = _PS_MODULE_DIR_ . 'katalogy/views/img/katalogy/';
+
+            if (!file_exists($upload_dir)) {
+                mkdir($upload_dir, 0755, true);
+            }
+
+            if (move_uploaded_file($_FILES['image']['tmp_name'], $upload_dir . $image_name)) {
+                if ($original_image && $original_image != $image_name && file_exists($upload_dir . $original_image)) {
+                    unlink($upload_dir . $original_image);
+                }
+                $katalog->image = $image_name;
+                $updated = true;
+            }
+        }
+
+        // Zpracování nahrání souboru katalogu
+        if (isset($_FILES['catalog_file']) && $_FILES['catalog_file']['size'] > 0 && $_FILES['catalog_file']['error'] == 0) {
+            $file_extension = pathinfo($_FILES['catalog_file']['name'], PATHINFO_EXTENSION);
+            $file_name = $katalog->id . '_catalog_' . time() . '.' . $file_extension;
+            $upload_dir = _PS_MODULE_DIR_ . 'katalogy/files/';
+
+            if (!file_exists($upload_dir)) {
+                mkdir($upload_dir, 0755, true);
+            }
+
+            if (move_uploaded_file($_FILES['catalog_file']['tmp_name'], $upload_dir . $file_name)) {
+                if ($original_file_path && $original_file_path != $file_name && file_exists($upload_dir . $original_file_path)) {
+                    unlink($upload_dir . $original_file_path);
+                }
+                $katalog->file_path = $file_name;
+                $updated = true;
+            }
+        }
+
+        if ($updated) {
+            $katalog->update();
+        }
+    }
+
+    private function getNextPosition()
+    {
+        $sql = 'SELECT MAX(`position`) as max_pos FROM `' . _DB_PREFIX_ . 'katalogy`';
+        $result = Db::getInstance()->getRow($sql);
+        return (int)$result['max_pos'] + 1;
+    }
+
+    /**
+     * Oprava duplicitních pozic
+     */
+    private function fixDuplicatePositions()
+    {
+        $sql = 'SELECT `id_katalog` FROM `' . _DB_PREFIX_ . 'katalogy` ORDER BY `position` ASC, `id_katalog` ASC';
+        $catalogs = Db::getInstance()->executeS($sql);
+
+        if ($catalogs) {
+            $position = 1;
+            foreach ($catalogs as $catalog) {
+                $update_sql = 'UPDATE `' . _DB_PREFIX_ . 'katalogy` 
+                              SET `position` = ' . (int)$position . ' 
+                              WHERE `id_katalog` = ' . (int)$catalog['id_katalog'];
+                Db::getInstance()->execute($update_sql);
+                $position++;
+            }
         }
     }
 }

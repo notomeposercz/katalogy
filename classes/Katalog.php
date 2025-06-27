@@ -1,6 +1,6 @@
 <?php
 /**
- * Katalog Model Class
+ * Katalog Model Class - OPRAVENÁ VERZE
  */
 
 class Katalog extends ObjectModel
@@ -98,30 +98,33 @@ class Katalog extends ObjectModel
      */
     public static function getHighestPosition()
     {
-        $sql = 'SELECT MAX(`position`) FROM `' . _DB_PREFIX_ . 'katalogy`';
-        $max_position = (int)Db::getInstance()->getValue($sql);
-        return $max_position > 0 ? $max_position : 0;
+        $sql = 'SELECT MAX(`position`) as max_pos FROM `' . _DB_PREFIX_ . 'katalogy`';
+        $result = Db::getInstance()->getRow($sql);
+        return $result ? (int)$result['max_pos'] : 0;
     }
 
     /**
-     * Fix duplicate positions
+     * OPRAVA: Kompletní přepsání opravy duplicitních pozic
      */
     public static function fixDuplicatePositions()
     {
-        $sql = 'SELECT `id_katalog` FROM `' . _DB_PREFIX_ . 'katalogy` ORDER BY `position` ASC, `id_katalog` ASC';
+        // Získej všechny katalogy seřazené podle aktuální pozice a ID
+        $sql = 'SELECT `id_katalog` FROM `' . _DB_PREFIX_ . 'katalogy` 
+                ORDER BY `position` ASC, `id_katalog` ASC';
         $catalogs = Db::getInstance()->executeS($sql);
 
         if ($catalogs) {
             $position = 1;
             foreach ($catalogs as $catalog) {
-                Db::getInstance()->update(
-                    'katalogy',
-                    ['position' => $position],
-                    'id_katalog = ' . (int)$catalog['id_katalog']
-                );
+                $update_sql = 'UPDATE `' . _DB_PREFIX_ . 'katalogy` 
+                              SET `position` = ' . (int)$position . ' 
+                              WHERE `id_katalog` = ' . (int)$catalog['id_katalog'];
+                Db::getInstance()->execute($update_sql);
                 $position++;
             }
         }
+        
+        return true;
     }
 
     /**
@@ -157,41 +160,155 @@ class Katalog extends ObjectModel
     }
 
     /**
-     * Update position of catalog
+     * OPRAVA: Přepsaná metoda pro aktualizaci bez vytváření nových záznamů
+     */
+    public function update($null_values = false)
+    {
+        // Zajisti, že máme správné ID
+        if (empty($this->id) && !empty($this->id_katalog)) {
+            $this->id = $this->id_katalog;
+        }
+
+        // Nastav datum aktualizace
+        $this->date_upd = date('Y-m-d H:i:s');
+
+        // Zavolej parent update metodu
+        return parent::update($null_values);
+    }
+
+    /**
+     * OPRAVA: Přepsaná metoda save pro správné vytváření/editaci
+     */
+    public function save($null_values = false, $auto_date = true)
+    {
+        // Pokud máme ID, jedná se o update
+        if (!empty($this->id) || !empty($this->id_katalog)) {
+            if (empty($this->id) && !empty($this->id_katalog)) {
+                $this->id = $this->id_katalog;
+            }
+            
+            if ($auto_date) {
+                $this->date_upd = date('Y-m-d H:i:s');
+            }
+            
+            return $this->update($null_values);
+        } else {
+            // Nový záznam
+            if ($auto_date) {
+                $this->date_add = date('Y-m-d H:i:s');
+                $this->date_upd = date('Y-m-d H:i:s');
+            }
+            
+            // Nastav pozici pokud není zadána
+            if (empty($this->position)) {
+                $this->position = self::getHighestPosition() + 1;
+            }
+            
+            return $this->add($null_values, $auto_date);
+        }
+    }
+
+    /**
+     * OPRAVA: Nová metoda pro aktualizaci pozice bez duplicit
      */
     public function updatePosition($way, $position)
     {
-        if (!$res = Db::getInstance()->executeS('
-            SELECT `id_katalog`, `position`
-            FROM `' . _DB_PREFIX_ . 'katalogy`
-            ORDER BY `position` ASC'
-        )) {
-            return false;
+        // Načti aktuální pozici
+        $current_position = (int)$this->position;
+        $target_position = (int)$position;
+        
+        if ($current_position == $target_position) {
+            return true; // Žádná změna
         }
 
-        foreach ($res as $catalog) {
-            if ((int)$catalog['id_katalog'] == (int)$this->id) {
-                $moved_catalog = $catalog;
+        // Začni transakci
+        Db::getInstance()->execute('START TRANSACTION');
+
+        try {
+            if ($way) {
+                // Posun nahoru (snížení pozice)
+                $sql = 'UPDATE `' . _DB_PREFIX_ . 'katalogy` 
+                       SET `position` = `position` + 1 
+                       WHERE `position` >= ' . (int)$target_position . ' 
+                       AND `position` < ' . (int)$current_position . ' 
+                       AND `id_katalog` != ' . (int)$this->id;
+            } else {
+                // Posun dolů (zvýšení pozice)
+                $sql = 'UPDATE `' . _DB_PREFIX_ . 'katalogy` 
+                       SET `position` = `position` - 1 
+                       WHERE `position` <= ' . (int)$target_position . ' 
+                       AND `position` > ' . (int)$current_position . ' 
+                       AND `id_katalog` != ' . (int)$this->id;
+            }
+            
+            // Proveď posun ostatních
+            if (!Db::getInstance()->execute($sql)) {
+                throw new Exception('Chyba při posunu ostatních pozic');
+            }
+
+            // Nastav novou pozici pro aktuální katalog
+            $update_sql = 'UPDATE `' . _DB_PREFIX_ . 'katalogy` 
+                          SET `position` = ' . (int)$target_position . ' 
+                          WHERE `id_katalog` = ' . (int)$this->id;
+            
+            if (!Db::getInstance()->execute($update_sql)) {
+                throw new Exception('Chyba při nastavení nové pozice');
+            }
+
+            // Potvrď transakci
+            Db::getInstance()->execute('COMMIT');
+            
+            // Aktualizuj objekt
+            $this->position = $target_position;
+            
+            return true;
+            
+        } catch (Exception $e) {
+            // Vrať transakci zpět
+            Db::getInstance()->execute('ROLLBACK');
+            return false;
+        }
+    }
+
+    /**
+     * Získání katalogu pro administraci (včetně neaktivních)
+     */
+    public static function getAllForAdmin()
+    {
+        $sql = 'SELECT * FROM `' . _DB_PREFIX_ . 'katalogy` 
+                ORDER BY `position` ASC';
+        
+        return Db::getInstance()->executeS($sql);
+    }
+
+    /**
+     * Smazání katalogu včetně souborů
+     */
+    public function delete()
+    {
+        // Smaž soubory
+        if ($this->image) {
+            $image_path = _PS_MODULE_DIR_ . 'katalogy/views/img/katalogy/' . $this->image;
+            if (file_exists($image_path)) {
+                unlink($image_path);
             }
         }
 
-        if (!isset($moved_catalog) || !isset($position)) {
-            return false;
+        if ($this->file_path) {
+            $file_path = _PS_MODULE_DIR_ . 'katalogy/files/' . $this->file_path;
+            if (file_exists($file_path)) {
+                unlink($file_path);
+            }
         }
 
-        // < and > statements rather than BETWEEN operator
-        // since BETWEEN is treated differently according to databases
-        return (Db::getInstance()->execute('
-            UPDATE `' . _DB_PREFIX_ . 'katalogy`
-            SET `position`= `position` ' . ($way ? '- 1' : '+ 1') . '
-            WHERE `position`
-            ' . ($way
-                ? '> ' . (int)$moved_catalog['position'] . ' AND `position` <= ' . (int)$position
-                : '< ' . (int)$moved_catalog['position'] . ' AND `position` >= ' . (int)$position) . '
-            AND `id_katalog` != ' . (int)$moved_catalog['id_katalog'])
-        && Db::getInstance()->execute('
-            UPDATE `' . _DB_PREFIX_ . 'katalogy`
-            SET `position` = ' . (int)$position . '
-            WHERE `id_katalog` = ' . (int)$moved_catalog['id_katalog']));
+        // Smaž z databáze
+        $result = parent::delete();
+        
+        // Oprav pozice po smazání
+        if ($result) {
+            self::fixDuplicatePositions();
+        }
+        
+        return $result;
     }
 }

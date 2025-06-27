@@ -2,6 +2,7 @@
 /**
  * Pomocný skript pro opravu pozic katalogů
  * Spusťte tento soubor jednorázově pro opravu duplicitních pozic
+ * Umístit do /modules/katalogy/
  */
 
 // Načtení PrestaShop prostředí
